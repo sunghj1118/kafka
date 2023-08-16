@@ -73,4 +73,85 @@ float나 int를 stringserializer으로 하면 오히려 더 많은 데이터 사
 - transactional.id: 프로듀서가 레코드를 전송할 때 레코드를 트랜잭션 단위로 물ㄲ을지 여부를 설정한다. 기본값은 null이다. 
 
 
+# ISR (In-Sync Replicas)
 
+acks 옵션은 중요하다. 0, 1, 또는 -1.
+
+ISR이란 용어가 생긴 이유는 팔로워 파티션이 리더 파티션을 복제하는 시간 차이(replication lag) 덕분에 offset 차이가 발생할 수 있기 때문에 생겼다. 
+
+acks: 얼마나 높게 신뢰성을 지정할지 정하는 옵션.
+신뢰도 vs 성능.
+
+복제 개수가 2이상인 경우에만 본다. 
+
+**acks=0**
+성능은 높지만 신뢰도는 낮다. 
+프로듀서가 리더 파티션으로 데이터를 전송했을 때 리더 파티션으로 *데이터가 저장되었는지 확인하지 않는다는* 것.
+데이터 전송이 일부 유실되더라도 빨리 보내야하면 이렇게 쓴다. 예: GPS.
+
+acks=1
+디폴트 옵션.
+리더 파티션에만 정상적으로 적재되었는지 확인.
+이 과정이 조금은 시간이 걸려서 성능은 조금 낮다. 
+또한, 복제 개수가 2이상이면 유실 가능성이 존재한다. 리더에만 확인하니까.
+
+acks=-1 (all)
+처리량은 낮지만 신뢰도는 가장 높다.
+프로듀서가 리더에 데이터를 저장하고 팔로워들에 대해서도 다 저장한다. 
+
+ISR은 2로 설정해도 충분하다. 1은 의미 없다.
+
+# 프로듀서 애플리케이션 개발하기
+
+![[Screenshot 2023-08-15 at 10.18.53 PM.png]]
+에러. 왜지.?
+![[Screenshot 2023-08-15 at 10.34.18 PM.png]]
+브로커를 안 띄어놓고 돌리니까 안되지.
+
+![[Screenshot 2023-08-15 at 10.37.28 PM.png]]
+브로커는 문제가 있다.
+
+뭐지...
+
+
+# 메시지 키를 가진 레코드를 전송하는 프로듀서
+
+메시지 키를 포함한 레코드를 보내봤습니다.
+
+`bin/kafka-consoler-consumer.sh --bootstrap-server my-kafka:9092 --topic test --property print.key=true --property key.separator="-" --from-beginning`
+
+# 레코드에 파티션 번호를 지정하여 전송하는 프로듀서
+파티션 번호를 지정하여 전송하는 프로듀서.
+
+# 커스텀 파티셔너를 가지는 프로듀서
+pangyo라는 메시지 값을 가진 메시지 키가 0번 파티션으로 무조건 가야 할때 커스텀 파티션 지정.
+
+# 레코드 전송 결과를 확인하는 프로듀서 애플리케이션
+기록을 확인하면 된다. 
+
+# 프로듀서의 안전한 종료
+producer.close()
+
+
+# 퀴즈
+1) 프로듀서에서 데이터를 전송할 때 반드시 배치로 묶어 전송한다 (O/**X**)
+
+2) 메시지 키를 지정하지 않으면 RoundRobinPartitioner로 파티셔너가 지정된다 (O/**X**) [옵션값에 따라 달라진다]
+
+3) ISR은 복제 개수가 2 이상일 경우에만 존재한다 (O/**X**) [rf 1일때도 존재]
+
+4) acks가 all(-1)일 경우 데이터 전송 속도가 가장 빠르다 (O/**X**) [0일때]
+
+5) min.insync.replicas=3, 복제 개수가 2일 때 가장 신뢰도 높게 데이터를 전송할 수 있다 (O/**X**)
+
+
+
+
+
+bin/kafka-console-consumer.sh --bootstrap-server my-kafka:9092 --topic test --property print.key=true --property key.separator="-" --from-beginning
+
+박찬길
+
+11:16 PM
+
+이후, 프로듀서 애플리케이션 코드가 잘 작동하는지 확인하기 위해 1. bin/zookeeper-server-start.sh config/zookeeper.properties 2. bin/kafka-server-start.sh config/server.properties 3. bin/kafka-console-consumer.sh --bootstrap-server my-kafka:9092 --topic test --from-beginning 를 터미널에서 실행하여 토픽과 레코드가 잘 생성되어 적재 되었는지 확인할 수 있다
